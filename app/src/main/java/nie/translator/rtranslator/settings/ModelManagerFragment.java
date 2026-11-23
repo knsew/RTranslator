@@ -15,9 +15,11 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CompoundButton;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.RadioButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -43,6 +45,7 @@ import nie.translator.rtranslator.tools.ErrorCodes;
 import nie.translator.rtranslator.tools.Tools;
 import nie.translator.rtranslator.tools.gui.ResourceManagerView;
 import nie.translator.rtranslator.tools.gui.SegmentProgressBar;
+import nie.translator.rtranslator.voice_translation.neural_networks.translation.LlmTranslator;
 import nie.translator.rtranslator.voice_translation.neural_networks.translation.Translator;
 import worker8.com.github.radiogroupplus.RadioGroupPlus;
 
@@ -71,6 +74,7 @@ public class ModelManagerFragment extends Fragment {
     private RadioButton radioMozilla;
     private RadioButton radioHy;
     private RadioButton radioMadlad;
+    private RadioButton radioLlm;
     private ResourceManagerView hyManagerView;
     private ResourceManagerView madladManagerView;
     private ResourceManagerView tatoebaManagerView;
@@ -83,6 +87,7 @@ public class ModelManagerFragment extends Fragment {
     private TextView textRamUsage;
     private TextView textRamUsage2;
     private ImageView arrowMozilla;
+    private ImageView arrowLlm;
     private boolean guiStateRestored = false;
 
 
@@ -103,6 +108,7 @@ public class ModelManagerFragment extends Fragment {
         radioMozilla = view.findViewById(R.id.radioMozilla);
         radioHy = view.findViewById(R.id.radioHY);
         radioMadlad = view.findViewById(R.id.radioMadlad);
+        radioLlm = view.findViewById(R.id.radioLlm);
         hyManagerView = view.findViewById(R.id.modelHy);
         madladManagerView = view.findViewById(R.id.modelMadlad);
         tatoebaManagerView = view.findViewById(R.id.resourceTatoeba);
@@ -115,6 +121,7 @@ public class ModelManagerFragment extends Fragment {
         textRamUsage = view.findViewById(R.id.textRamUsage);
         textRamUsage2 = view.findViewById(R.id.textRamUsage2);
         arrowMozilla = view.findViewById(R.id.arrowMozilla);
+        arrowLlm = view.findViewById(R.id.arrowLlm);
     }
 
     @Override
@@ -185,8 +192,14 @@ public class ModelManagerFragment extends Fragment {
                 }
             }
         });
+        arrowLlm.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showLlmSettingsDialog();
+            }
+        });
         radioGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            if(checkedId == R.id.radioMozilla){  //eventual deactivation of switchMozillaForVoiceModes if Mozilla is the model selected
+            if(checkedId == R.id.radioMozilla || checkedId == R.id.radioLlm){  //eventual deactivation of switchMozillaForVoiceModes if Mozilla or the custom LLM is the model selected
                 switchMozillaForVoiceModes.setChecked(false);
                 switchMozillaForVoiceModes.setEnabled(false);
             }else{
@@ -268,13 +281,16 @@ public class ModelManagerFragment extends Fragment {
             case Translator.HY_MT:
                 radioGroup.check(R.id.radioHY);
                 break;
+            case Translator.LLM:
+                radioGroup.check(R.id.radioLlm);
+                break;
         }
         // switches initialization
         switchMozillaForVoiceModes.setChecked(global.isUseMozillaForVoiceTranslation());
         switchWhisperReducedRam.setChecked(global.isWhisperReducedRam());
         switchTatoeba.setChecked(global.isUseTatoeba());
         switchTranslationDict.setChecked(global.isUseTranslationDictionaries());
-        if(mode == Translator.MOZILLA){  //eventual deactivation of switchMozillaForVoiceModes if Mozilla is the model selected
+        if(mode == Translator.MOZILLA || mode == Translator.LLM){  //eventual deactivation of switchMozillaForVoiceModes if Mozilla or the custom LLM is the model selected
             switchMozillaForVoiceModes.setChecked(false);
             switchMozillaForVoiceModes.setEnabled(false);
         }else{
@@ -335,6 +351,8 @@ public class ModelManagerFragment extends Fragment {
         } else if(checkRadioId == R.id.radioHY && global.getTranslationMode() != Translator.HY_MT) {
             return true;
         } else if(checkRadioId == R.id.radioMadlad && global.getTranslationMode() != Translator.MADLAD_CACHE) {
+            return true;
+        } else if(checkRadioId == R.id.radioLlm && global.getTranslationMode() != Translator.LLM) {
             return true;
         }
         // check Mozilla for voice modes
@@ -456,6 +474,9 @@ public class ModelManagerFragment extends Fragment {
                             case Translator.MADLAD_CACHE:
                                 textView.setText(getString(R.string.error_missing_madlad));
                                 break;
+                            case Translator.LLM:
+                                textView.setText(getString(R.string.error_missing_llm_config));
+                                break;
                         }
                         break;
                     case MOZILLA_FOR_VOICE:
@@ -502,9 +523,16 @@ public class ModelManagerFragment extends Fragment {
                 listener.onFailure(new int[]{ApplySettingsStage.TRANSLATION_MODEL.ordinal(), ErrorCodes.NO_DOWNLOADED_RESOURCE}, Translator.MADLAD_CACHE);
                 return;
             }
+        } else if(checkRadioId == R.id.radioLlm) {
+            model = Translator.LLM;
+            //the custom LLM needs no download, but the server address and the model name must be configured
+            if(!global.isLlmConfigured()){
+                listener.onFailure(new int[]{ApplySettingsStage.TRANSLATION_MODEL.ordinal(), ErrorCodes.NO_DOWNLOADED_RESOURCE}, Translator.LLM);
+                return;
+            }
         }
         //check eventual Mozilla for voices mode errors
-        if(radioGroup.getCheckedRadioButtonId() != R.id.radioMozilla && switchMozillaForVoiceModes.isChecked()){
+        if(radioGroup.getCheckedRadioButtonId() != R.id.radioMozilla && radioGroup.getCheckedRadioButtonId() != R.id.radioLlm && switchMozillaForVoiceModes.isChecked()){
             // if there is at least one Mozilla mode downloaded we apply the new setting
             if(!checkMozillaModelsPresence(downloadManager)) {
                 listener.onFailure(new int[]{ApplySettingsStage.MOZILLA_FOR_VOICE.ordinal(), ErrorCodes.NO_DOWNLOADED_RESOURCE}, 0);
@@ -561,7 +589,85 @@ public class ModelManagerFragment extends Fragment {
                 ramUsed += MOZILLA_RAM_CONSUMPTION_MB;
             }
             setRamUsageTranslation(ramUsed);
+        } else if(checkRadioId == R.id.radioLlm) {
+            //the custom LLM runs on the server, so it uses no local RAM for translation
+            setRamUsageTranslation(0);
         }
+    }
+
+    /**
+     * Configuration dialog for the custom LLM mode: server address, model id, API key,
+     * thinking and streaming switches, plus a connection test. The settings are saved
+     * immediately (no model reload is needed) and apply to the next translation.
+     */
+    private void showLlmSettingsDialog() {
+        final View dialogLayout = activity.getLayoutInflater().inflate(R.layout.dialog_llm_settings, null);
+        final EditText editBaseUrl = dialogLayout.findViewById(R.id.editLlmBaseUrl);
+        final EditText editModel = dialogLayout.findViewById(R.id.editLlmModel);
+        final EditText editApiKey = dialogLayout.findViewById(R.id.editLlmApiKey);
+        final SwitchCompat switchThinking = dialogLayout.findViewById(R.id.switchLlmThinking);
+        final SwitchCompat switchStream = dialogLayout.findViewById(R.id.switchLlmStream);
+        final Button testButton = dialogLayout.findViewById(R.id.buttonTestLlm);
+
+        editBaseUrl.setText(global.getLlmBaseUrl());
+        editModel.setText(global.getLlmModel());
+        editApiKey.setText(global.getLlmApiKey());
+        switchThinking.setChecked(global.isLlmThinking());
+        switchStream.setChecked(global.isLlmStream());
+
+        final Activity currentActivity = activity;
+        testButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                final String baseUrl = editBaseUrl.getText().toString().trim();
+                final String apiKey = editApiKey.getText().toString().trim();
+                if (baseUrl.isEmpty()) {
+                    Toast.makeText(currentActivity, R.string.error_missing_llm_config, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                testButton.setEnabled(false);
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            final int models = LlmTranslator.testConnection(baseUrl, apiKey);
+                            currentActivity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    testButton.setEnabled(true);
+                                    Toast.makeText(currentActivity, getString(R.string.llm_test_success, models), Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        } catch (final Exception e) {
+                            Log.e("llm_test", "Connection test failed", e);
+                            currentActivity.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    testButton.setEnabled(true);
+                                    Toast.makeText(currentActivity, getString(R.string.llm_test_failed, e.getMessage()), Toast.LENGTH_LONG).show();
+                                }
+                            });
+                        }
+                    }
+                }).start();
+            }
+        });
+
+        final MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(activity, R.style.MyThemeOverlay_MaterialComponents_MaterialAlertDialog);
+        builder.setTitle(R.string.llm_settings);
+        builder.setView(dialogLayout);
+        builder.setPositiveButton(R.string.ok, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                global.setLlmBaseUrl(editBaseUrl.getText().toString());
+                global.setLlmModel(editModel.getText().toString());
+                global.setLlmApiKey(editApiKey.getText().toString());
+                global.setLlmThinking(switchThinking.isChecked());
+                global.setLlmStream(switchStream.isChecked());
+            }
+        });
+        builder.setNegativeButton(R.string.cancel, null);
+        builder.create().show();
     }
 
     private void updateRamUsageTranslationEnhancements(){

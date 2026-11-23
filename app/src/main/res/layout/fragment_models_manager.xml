@@ -181,6 +181,79 @@
                             app:modelSize="1380"
                             app:modelTitle="@string/versatility" />
                     </androidx.constraintlayout.widget.ConstraintLayout>
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:screenReaderFocusable="true"
+                        android:focusable="false">
+
+                        <RadioButton
+                            android:id="@+id/radioLlm"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="16dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginEnd="16dp"
+                            android:layout_marginBottom="16dp"
+                            android:contentDescription="@string/custom_llm"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintHorizontal_bias="0.0"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent"
+                            app:layout_constraintVertical_bias="0.0" />
+
+                        <TextView
+                            android:id="@+id/titleLlm"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginBottom="2dp"
+                            android:text="@string/custom_llm"
+                            android:textColor="?attr/colorTextLevel2"
+                            android:textSize="18sp"
+                            android:textStyle="bold"
+                            android:focusable="false"
+                            app:layout_constraintBottom_toBottomOf="@+id/radioLlm"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintHorizontal_bias="0.0"
+                            app:layout_constraintStart_toEndOf="@+id/radioLlm"
+                            app:layout_constraintTop_toTopOf="@+id/radioLlm" />
+
+                        <TextView
+                            android:id="@+id/descriptionLlm"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:layout_marginTop="16dp"
+                            android:layout_marginEnd="16dp"
+                            android:layout_marginBottom="8dp"
+                            android:text="@string/description_model_llm"
+                            android:focusable="false"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintHorizontal_bias="0.0"
+                            app:layout_constraintStart_toEndOf="@+id/radioLlm"
+                            app:layout_constraintTop_toBottomOf="@+id/titleLlm"
+                            app:layout_constraintVertical_bias="0.0" />
+
+                        <ImageView
+                            android:id="@+id/arrowLlm"
+                            android:layout_width="42dp"
+                            android:layout_height="42dp"
+                            android:layout_marginEnd="24dp"
+                            android:layout_marginBottom="2dp"
+                            android:contentDescription="@string/description_manage_llm_button"
+                            app:layout_constraintBottom_toBottomOf="@+id/titleLlm"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintHorizontal_bias="1.0"
+                            app:layout_constraintStart_toEndOf="@+id/titleLlm"
+                            app:layout_constraintTop_toTopOf="@+id/titleLlm"
+                            android:src="@drawable/right_arrow_icon"
+                            android:tint="?attr/colorTextLevel4" />
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
                 </LinearLayout>
             </worker8.com.github.radiogroupplus.RadioGroupPlus>
             <LinearLayout

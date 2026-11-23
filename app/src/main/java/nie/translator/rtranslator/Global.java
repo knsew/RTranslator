@@ -255,15 +255,6 @@ public class Global extends Application implements DefaultLifecycleObserver {
     }
 
     public ArrayList<CustomLocale> getTranslatorLanguages(RTranslatorMode rtranslatorMode, final boolean recycleResult) {
-        if (recycleResult) {
-            if(isUseMozillaForVoiceTranslation() && (rtranslatorMode == RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == RTranslatorMode.WALKIE_TALKIE_MODE)) {
-                return getMozillaLanguages(true);
-            }else{
-                if(!translatorLanguages.isEmpty()) return translatorLanguages;
-            }
-        }
-
-        // recycleResult is false
         SharedPreferences sharedPreferences = getSharedPreferences("default", Context.MODE_PRIVATE);
         int mode;
         if(translator != null){
@@ -271,6 +262,17 @@ public class Global extends Application implements DefaultLifecycleObserver {
         }else{
             mode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
         }
+        //the "Mozilla for voice modes" option never applies to the custom LLM mode
+        boolean useMozillaForVoice = mode != Translator.LLM && isUseMozillaForVoiceTranslation() && (rtranslatorMode == RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == RTranslatorMode.WALKIE_TALKIE_MODE);
+        if (recycleResult) {
+            if(useMozillaForVoice) {
+                return getMozillaLanguages(true);
+            }else{
+                if(!translatorLanguages.isEmpty()) return translatorLanguages;
+            }
+        }
+
+        // recycleResult is false
         boolean qualityLow = sharedPreferences.getBoolean("languagesNNQualityLow", false);
         ArrayList<CustomLocale> languages = Translator.getSupportedLanguages(Global.this, qualityLow, mode);  //in the case of mozilla, this method will return all the supported languages, not only the installed ones, so for mozilla we will use the getMozillaLanguages method
         ArrayList<CustomLocale> mozillaLanguages = getMozillaLanguages(false);
@@ -279,7 +281,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
             return mozillaLanguages;
         }else{
             translatorLanguages = languages;
-            if(isUseMozillaForVoiceTranslation() && (rtranslatorMode == RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == RTranslatorMode.WALKIE_TALKIE_MODE)) {
+            if(useMozillaForVoice) {
                 return mozillaLanguages;
             }else{
                 return languages;
@@ -957,6 +959,81 @@ public class Global extends Application implements DefaultLifecycleObserver {
 
     public int getTranslationMode() {
         return translationMode;
+    }
+
+    //custom LLM translation settings (fork addition): server address, model id and API key
+    //of an OpenAI-compatible endpoint, kept in the "default" shared preferences together
+    //with the other translation settings. The API key never leaves the device except
+    //as an Authorization header to the configured server.
+    private String llmBaseUrl;
+    private String llmApiKey;
+    private String llmModel;
+
+    public String getLlmBaseUrl() {
+        if (llmBaseUrl == null) {
+            llmBaseUrl = getSharedPreferences("default", Context.MODE_PRIVATE).getString("llmBaseUrl", "");
+        }
+        return llmBaseUrl;
+    }
+
+    public void setLlmBaseUrl(String llmBaseUrl) {
+        this.llmBaseUrl = llmBaseUrl == null ? "" : llmBaseUrl.trim();
+        SharedPreferences.Editor editor = getSharedPreferences("default", Context.MODE_PRIVATE).edit();
+        editor.putString("llmBaseUrl", this.llmBaseUrl);
+        editor.apply();
+    }
+
+    public String getLlmApiKey() {
+        if (llmApiKey == null) {
+            llmApiKey = getSharedPreferences("default", Context.MODE_PRIVATE).getString("llmApiKey", "");
+        }
+        return llmApiKey;
+    }
+
+    public void setLlmApiKey(String llmApiKey) {
+        this.llmApiKey = llmApiKey == null ? "" : llmApiKey.trim();
+        SharedPreferences.Editor editor = getSharedPreferences("default", Context.MODE_PRIVATE).edit();
+        editor.putString("llmApiKey", this.llmApiKey);
+        editor.apply();
+    }
+
+    public String getLlmModel() {
+        if (llmModel == null) {
+            llmModel = getSharedPreferences("default", Context.MODE_PRIVATE).getString("llmModel", "");
+        }
+        return llmModel;
+    }
+
+    public void setLlmModel(String llmModel) {
+        this.llmModel = llmModel == null ? "" : llmModel.trim();
+        SharedPreferences.Editor editor = getSharedPreferences("default", Context.MODE_PRIVATE).edit();
+        editor.putString("llmModel", this.llmModel);
+        editor.apply();
+    }
+
+    public boolean isLlmThinking() {
+        return getSharedPreferences("default", Context.MODE_PRIVATE).getBoolean("llmThinking", false);
+    }
+
+    public void setLlmThinking(boolean llmThinking) {
+        SharedPreferences.Editor editor = getSharedPreferences("default", Context.MODE_PRIVATE).edit();
+        editor.putBoolean("llmThinking", llmThinking);
+        editor.apply();
+    }
+
+    public boolean isLlmStream() {
+        return getSharedPreferences("default", Context.MODE_PRIVATE).getBoolean("llmStream", true);
+    }
+
+    public void setLlmStream(boolean llmStream) {
+        SharedPreferences.Editor editor = getSharedPreferences("default", Context.MODE_PRIVATE).edit();
+        editor.putBoolean("llmStream", llmStream);
+        editor.apply();
+    }
+
+    public boolean isLlmConfigured() {
+        return getLlmBaseUrl() != null && !getLlmBaseUrl().trim().isEmpty()
+                && getLlmModel() != null && !getLlmModel().trim().isEmpty();
     }
 
     public void setTranslationStatus(int translationMode, boolean useMozillaForVoiceTranslation, boolean useTatoeba, boolean useTranslationDicts, @NonNull Translator.GeneralListener listener) {

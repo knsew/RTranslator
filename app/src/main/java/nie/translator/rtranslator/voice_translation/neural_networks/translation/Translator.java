@@ -68,6 +68,7 @@ import nie.translator.rtranslator.tools.nn.Utils;
 import nie.translator.rtranslator.voice_translation._conversation_mode._conversation.ConversationMessage;
 import nie.translator.rtranslator.voice_translation.neural_networks.NeuralNetworkApi;
 import nie.translator.rtranslator.voice_translation.neural_networks.NeuralNetworkApiResult;
+import nie.translator.rtranslator.voice_translation.neural_networks.voice.Recognizer;
 
 
 public class Translator extends NeuralNetworkApi {
@@ -78,6 +79,9 @@ public class Translator extends NeuralNetworkApi {
     public static final int MADLAD_CACHE = 5;
     public static final int MOZILLA = 7;
     public static final int HY_MT = 8;
+    //custom LLM mode (fork addition): translation through an external OpenAI-compatible
+    //server, while speech recognition and TTS stay local; no ONNX model is loaded
+    public static final int LLM = 9;
     private int mode = -1;
     private Tokenizer tokenizer;
     private OrtEnvironment onnxEnv;
@@ -134,8 +138,8 @@ public class Translator extends NeuralNetworkApi {
                         }
 
                         /** INITIALIZATION **/
-                        // translation onnx model initialization
-                        if (mode != MOZILLA) {
+                        // translation onnx model initialization (not needed for Mozilla and for the custom LLM mode)
+                        if (mode != MOZILLA && mode != LLM) {
                             onnxTranslationModelInitialization();
                         }
                     }
@@ -659,7 +663,8 @@ public class Translator extends NeuralNetworkApi {
             String[] synonyms = null;
 
             int performMode = mode;
-            if(global.isUseMozillaForVoiceTranslation() && (rtranslatorMode == Global.RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == Global.RTranslatorMode.WALKIE_TALKIE_MODE)){
+            //the custom LLM mode is never overridden by the "Mozilla for voice modes" option
+            if(mode != LLM && global.isUseMozillaForVoiceTranslation() && (rtranslatorMode == Global.RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == Global.RTranslatorMode.WALKIE_TALKIE_MODE)){
                 performMode = MOZILLA;
             }
 
@@ -690,7 +695,11 @@ public class Translator extends NeuralNetworkApi {
             }
 
             //translation execution
-            if(performMode != MOZILLA){
+            if(performMode == LLM){
+                //custom LLM mode: a single request to the configured server, no local
+                //tokenization, splitting, dictionary or Tatoeba lookup is involved
+                finalResult = performLlmTextTranslation(textToTranslate, inputLanguage, outputLanguage, responseListener);
+            }else if(performMode != MOZILLA){
                 int maxLength = 200;
                 if(performMode == NLLB || performMode == NLLB_CACHE){
                     maxLength = 200;
@@ -877,6 +886,34 @@ public class Translator extends NeuralNetworkApi {
                 return null;
             }
         }
+    }
+
+    /**
+     * Translation through the configured external LLM server (custom LLM mode).
+     * Partial results are emitted while streaming, exactly like the local ONNX path does.
+     */
+    private String performLlmTextTranslation(final String textToTranslate, final CustomLocale inputLanguage, final CustomLocale outputLanguage, @Nullable final TranslateListener responseListener) throws Exception {
+        String baseUrl = global.getLlmBaseUrl();
+        String model = global.getLlmModel();
+        if (baseUrl == null || baseUrl.trim().isEmpty() || model == null || model.trim().isEmpty()) {
+            throw new Exception("Custom LLM translation is selected but the server address or the model name is not configured");
+        }
+        android.util.Log.i("translator", "Translating using the custom LLM server...");
+        String sourceLanguage = inputLanguage.getDisplayLanguage(Locale.ENGLISH);
+        String targetLanguage = outputLanguage.getDisplayLanguage(Locale.ENGLISH);
+        return LlmTranslator.translate(baseUrl, global.getLlmApiKey(), model,
+                global.isLlmThinking(), global.isLlmStream(),
+                sourceLanguage, targetLanguage, textToTranslate,
+                new LlmTranslator.PartialListener() {
+                    @Override
+                    public void onPartial(String partialText) {
+                        if (responseListener != null) {
+                            responseListener.onTranslatedText(textToTranslate, partialText, null, currentResultID, false, TranslateListener.ResultType.NORMAL, inputLanguage, outputLanguage);
+                        } else {
+                            notifyResult(textToTranslate, partialText, null, currentResultID, false, TranslateListener.ResultType.NORMAL, inputLanguage, outputLanguage);
+                        }
+                    }
+                });
     }
 
     private String performNNTextTranslation(final String textToTranslate, String[] joinedStringOutput, final CustomLocale inputLanguage, final CustomLocale outputLanguage, int beamSize, boolean saveResults, @Nullable final TranslateListener responseListener) throws Exception {
@@ -1814,6 +1851,9 @@ public class Translator extends NeuralNetworkApi {
                 document = documentBuilder.parse(context.getResources().openRawResource(R.raw.hy_mt_supported_languages));
             }else if (mode == MOZILLA) {
                 document = documentBuilder.parse(context.getResources().openRawResource(R.raw.mozilla_supported_languages));
+            }else if (mode == LLM) {
+                //an external LLM can translate any language the speech recognizer supports
+                return Recognizer.getSupportedLanguages(context);
             }
             NodeList list = document.getElementsByTagName("code");
             for (int i = 0; i < list.getLength(); i++) {

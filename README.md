@@ -2,6 +2,8 @@
 
 RTranslator is an (<a href='https://github.com/niedev/RTranslator?tab=readme-ov-file#libraries-and-models'>almost</a>) open-source, free, and offline real-time translation app for Android.
 
+> **Fork note:** this fork adds a "Custom LLM" translation mode (see the section below). Everything else is upstream RTranslator by [niedev](https://github.com/niedev/RTranslator).
+
 Connect to someone who has the app, connect Bluetooth headphones, put the phone in your pocket and you can have a conversation as if the other person spoke your language.
 <br /><br />
 
@@ -63,6 +65,18 @@ On the first launch, RTranslator will automatically download the models for tran
 The initial download will get the models from GitHub, however <a href="https://www.reddit.com/r/China/comments/v8fv0p/why_is_github_so_slow_in_china_recently/">in some regions GitHub is very slow</a>, those who have problems of this kind can download the models separately from a computer (or in general in whatever way they prefer) and insert them manually into the app following <a href="https://github.com/niedev/RTranslator/blob/v2.00/Sideloading.md">this guide</a>.
 
 If you have a GitHub account and want to be notified when a new release comes out you can do so by clicking, at the top of the page, on "Watch" -> "Custom" -> "Releases" -> "Apply".
+<br /><br />
+
+<h3>Custom LLM translation mode (this fork)</h3>
+
+In addition to the local models, this fork can translate through an external OpenAI-compatible LLM server of your choice, via `POST /v1/chat/completions`. Speech recognition (Whisper) and text-to-speech still run on the device; only the translation step goes to the server, so it works in Text, WalkieTalkie and Conversation modes.
+
+Setup: Settings → Models → select **Custom LLM**, tap the arrow next to it and fill in the server address (e.g. `https://your-server:8000/v1`, a plain `http://` address on your local network works too), the model id and the API key (leave empty if the server needs none). "Test connection" checks the server with `GET /v1/models`.
+
+- **Thinking**: on servers that support it (Qwen3/Halogen style `enable_thinking`), let the model think before translating. Turn it off for the lowest latency; when on, the reasoning effort is capped to keep it fast. Thinking content is never shown.
+- **Streaming**: the translation is shown while it is being generated. If the server does not support server-sent events, the app automatically falls back to a single non-streaming request.
+
+The API key is stored only in the app's private preferences on the device and is sent only to the configured server.
 <br /><br />
 
 <h3>RTranslator 3.0 First Beta is Out!</h3>
