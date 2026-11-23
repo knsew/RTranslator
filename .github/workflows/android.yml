@@ -25,6 +25,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v3
 
+      # the project needs NDK 28.0.12674087, which is not preinstalled on the
+      # runner; without accepted licenses AGP refuses to install it
+      - name: Install NDK and accept SDK licenses
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.0.12674087"
+
       - name: Build debug APK
         run: ./gradlew assembleDebug --stacktrace
 
