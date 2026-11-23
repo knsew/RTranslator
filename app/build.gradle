@@ -18,6 +18,17 @@
 
 apply plugin: 'com.android.application'
 
+// net.minidev:json-smart is required by nimbus-jose-jwt as a version range
+// ([1.3.1,2.3]), which forces Gradle to list versions from Maven Central on
+// every build; that listing is flaky on the CI runners (the metadata parse
+// fails with a SAX parser error), so pin the version Gradle would select
+// anyway (the top of the range) and skip the listing entirely.
+configurations.all {
+    resolutionStrategy {
+        force 'net.minidev:json-smart:2.3'
+    }
+}
+
 ext {
     supportLibraryVersion = '1.0.0'
     grpcVersion = '1.11.0'
