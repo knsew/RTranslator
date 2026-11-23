@@ -15,6 +15,10 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v4
+        with:
+          # the native code lives in git submodules (sentencepiece, bergamot,
+          # protobuf-lite, fastText); without them the CMake configure fails
+          submodules: recursive
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
