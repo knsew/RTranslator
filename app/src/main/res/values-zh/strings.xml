@@ -25,6 +25,11 @@
     <string name="dictionary">词典</string>
     <string name="apply">应用</string>
     <string name="speech_recognition_model">语音识别模型</string>
+    <string name="description_whisper_model">语音识别模型（Whisper）。对讲机和对话模式需要它；文字翻译不需要。</string>
+    <string name="title_speech_recognition_not_downloaded">语音识别模型未下载</string>
+    <string name="error_speech_recognition_not_downloaded">语音模式需要语音识别模型。请在设置 → 模型管理中下载 Whisper 模型（约 290 MB）后再使用。</string>
+    <string name="loading_speech_recognition">正在加载语音识别模型，请稍后再试。</string>
+    <string name="button_download">去下载</string>
     <string name="translation_dictionaries">翻译词典</string>
     <string name="performance">性能</string>
     <string name="quality">质量</string>

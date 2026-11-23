@@ -75,15 +75,8 @@ public class AccessActivity extends GeneralActivity {
         } else {
             final SharedPreferences sharedPreferences = this.getSharedPreferences("default", Context.MODE_PRIVATE);
             String savedUserName = sharedPreferences.getString("name", "");
-            if(savedUserName.length()>0){  //means that the user has already inserted the info in UserDataFragment, so we can start directly the DownloadFragment or the ModelManagerFragment
-                DownloadManager downloadManager = new DownloadManager(this);
-                ArrayList<DownloadGroupInfo> savedDownloadStatus = downloadManager.getSavedDownloadStatus();
-                int index = savedDownloadStatus.indexOf(global.getInitialDownloadInfo());
-                if(index != -1 && savedDownloadStatus.get(index).isAllDownloadCompleted()){  //means that the initial download is already completed, so we can start directly the ModelManagerFragment
-                    startFragment(MODEL_MANAGER, null);
-                }else{   //means that the initial download is not completed, so we must start the DownloadFragment
-                    startFragment(DOWNLOAD_FRAGMENT, null);
-                }
+            if(savedUserName.length()>0){  //means that the user has already inserted the info in UserDataFragment, so we can start directly the ModelManagerFragment (nothing is downloaded automatically; the user downloads the models they choose there)
+                startFragment(MODEL_MANAGER, null);
             }else{
                 startFragment(NOTICE_FRAGMENT, null);
             }

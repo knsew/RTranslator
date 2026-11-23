@@ -77,6 +77,12 @@ Setup: Settings → Models → select **Custom LLM**, tap the arrow next to it a
 - **Streaming**: the translation is shown while it is being generated. If the server does not support server-sent events, the app automatically falls back to a single non-streaming request.
 
 The API key is stored only in the app's private preferences on the device and is sent only to the configured server.
+
+<h3>No forced downloads (this fork)</h3>
+
+Unlike upstream, this fork downloads nothing on first start: no Whisper model, no translation model. **Custom LLM** is the default translation mode, so text translation works right after configuring the server. The speech recognition model (Whisper, ~290 MB) and the local translation models are downloaded on demand from Settings → Models, only when you choose them; the voice modes (WalkieTalkie, Conversation) ask you to download Whisper when you first open them.
+
+Release APKs of this fork are signed with its own release key (never the debug key).
 <br /><br />
 
 <h3>RTranslator 3.0 First Beta is Out!</h3>

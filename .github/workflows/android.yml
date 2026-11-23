@@ -1,6 +1,6 @@
-# Build a debug APK on every push to the main branch (public repository:
-# standard GitHub-hosted runners are free). The APK is uploaded as a build
-# artifact for testing; no Release is created here.
+# Build a signed release APK on every push to the main branch (public
+# repository: standard GitHub-hosted runners are free). The APK is uploaded
+# as a build artifact; no Release is created here.
 name: Android CI
 
 on:
@@ -36,12 +36,30 @@ jobs:
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;28.0.12674087"
 
-      - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+      # the release keystore is stored as a base64 secret; it is decoded to a
+      # temp file that only exists for the duration of this job
+      - name: Decode release keystore
+        run: |
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --stacktrace
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+
+      - name: Verify APK signature
+        run: |
+          APKSIGNER=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/*.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug
-          path: app/build/outputs/apk/debug/*.apk
+          name: app-release
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error

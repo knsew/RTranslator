@@ -186,7 +186,9 @@ public class LoadingActivity extends GeneralActivity {
                                 LoadingActivity.this.onFailure(reasons, value);
                             }
                         };
-                        if(Global.ONLY_TEXT_TRANSLATION_MODE) {
+                        if(Global.ONLY_TEXT_TRANSLATION_MODE || !global.isWhisperDownloaded()) {
+                            // no Whisper model on disk: the app still starts (text translation works),
+                            // the voice modes stay unavailable until the model is downloaded from the model manager
                             speechRecognizerInitListener.onInitializationFinished();
                         }else{
                             global.initializeSpeechRecognizer(speechRecognizerInitListener);
@@ -281,6 +283,9 @@ public class LoadingActivity extends GeneralActivity {
                     return false;
                 }
                 break;
+            case Translator.LLM:
+                // the custom LLM mode needs no downloaded model
+                break;
         }
         // check of Mozilla for voice translation modes preference
         if(translationMode != Translator.MOZILLA && global.isUseMozillaForVoiceTranslation() && !checkMozillaModelsPresence(downloadManager)){
@@ -320,7 +325,8 @@ public class LoadingActivity extends GeneralActivity {
         if(downloadManager.checkDownloadCompleted(global.getMadladDownloadInfo())){
             availableModels.add(Translator.MADLAD_CACHE);
         }
-        if(!availableModels.contains(translationMode)){
+        // the custom LLM mode needs no local model, so it is never switched away from here
+        if(translationMode != Translator.LLM && !availableModels.contains(translationMode)){
             int newTranslationMode = -1;
             if(availableModels.contains(Translator.MOZILLA)){
                 newTranslationMode = Translator.MOZILLA;

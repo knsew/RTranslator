@@ -254,7 +254,9 @@ public class ConversationService extends VoiceTranslationService {
             }
         };
 
-        mVoiceRecognizer.addCallback(mVoiceRecognizerCallback);
+        if (mVoiceRecognizer != null) {
+            mVoiceRecognizer.addCallback(mVoiceRecognizerCallback);
+        }
         //mBluetoothHelper.start();
 
         translator.loadTgtLangResourcesForConversation(global.getLanguage(true), new Translator.GeneralListener() {
@@ -307,9 +309,11 @@ public class ConversationService extends VoiceTranslationService {
     public void onDestroy() {
         // Stop SpeechRecognizer
         //mVoiceRecognizer.destroy();
-        mVoiceRecognizer.removeCallback(mVoiceRecognizerCallback);
-        mVoiceRecognizer.stop();
-        mVoiceRecognizer = null;
+        if (mVoiceRecognizer != null) {
+            mVoiceRecognizer.removeCallback(mVoiceRecognizerCallback);
+            mVoiceRecognizer.stop();
+            mVoiceRecognizer = null;
+        }
         //stop Bluetooth helper
         //mBluetoothHelper.stop();
         if(global.getBluetoothCommunicator() != null) {

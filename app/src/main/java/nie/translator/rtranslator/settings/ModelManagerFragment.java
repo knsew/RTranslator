@@ -78,6 +78,7 @@ public class ModelManagerFragment extends Fragment {
     private ResourceManagerView hyManagerView;
     private ResourceManagerView madladManagerView;
     private ResourceManagerView tatoebaManagerView;
+    private ResourceManagerView whisperManagerView;
     private Button applyButton;
     private SegmentProgressBar barRam;
     private SwitchCompat switchMozillaForVoiceModes;
@@ -112,6 +113,7 @@ public class ModelManagerFragment extends Fragment {
         hyManagerView = view.findViewById(R.id.modelHy);
         madladManagerView = view.findViewById(R.id.modelMadlad);
         tatoebaManagerView = view.findViewById(R.id.resourceTatoeba);
+        whisperManagerView = view.findViewById(R.id.modelWhisper);
         applyButton = view.findViewById(R.id.buttonApply);
         barRam = view.findViewById(R.id.barRam);
         switchMozillaForVoiceModes = view.findViewById(R.id.switchMozillaForVoiceModes);
@@ -132,6 +134,10 @@ public class ModelManagerFragment extends Fragment {
 
         //initialize download manager
         downloadManager = new DownloadManager(global);
+        // if the Whisper files are already on disk (e.g. downloaded by the old first-start flow),
+        // make sure the saved download status reflects that, so the Whisper entry below shows as downloaded
+        global.syncWhisperDownloadStatus();
+        resourceManagers.put("whisperManager", new ResourceManager(activity, global.getWhisperDownloadInfo(), whisperManagerView, downloadManager));
         resourceManagers.put("hyManager", new ResourceManager(activity, global.getHyMtDownloadInfo(), hyManagerView, downloadManager));
         resourceManagers.put("madladManager", new ResourceManager(activity, global.getMadladDownloadInfo(), madladManagerView, downloadManager));
         resourceManagers.put("tatoebaManager", new ResourceManager(activity, global.getTatoebaDownloadInfo(), tatoebaManagerView, downloadManager));
@@ -268,7 +274,7 @@ public class ModelManagerFragment extends Fragment {
     public void restoreGuiPreferenceState(){
         // model selection initialization
         SharedPreferences sharedPreferences = global.getSharedPreferences("default", Context.MODE_PRIVATE);
-        int mode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
+        int mode = sharedPreferences.getInt("selectedTranslationModel", Translator.LLM);
         switch (mode) {
             case Translator.MOZILLA:
                 radioGroup.check(R.id.radioMozilla);
@@ -420,6 +426,9 @@ public class ModelManagerFragment extends Fragment {
                             public void onSuccess() {
                                 dialog.cancel();
                                 if (activity instanceof SettingsActivity) {
+                                    // if the Whisper model was downloaded in this session, start the recognizer now
+                                    // so the voice modes become available without restarting the app
+                                    global.ensureSpeechRecognizerStarted();
                                     ((SettingsActivity) activity).startFragment(SettingsActivity.SETTINGS_FRAGMENT, null);
                                 } else if (activity instanceof AccessActivity) {
                                     startRTranslator();

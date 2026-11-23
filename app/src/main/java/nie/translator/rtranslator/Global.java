@@ -50,6 +50,7 @@ import nie.translator.rtranslator.bluetooth.Peer;
 import nie.translator.rtranslator.downloader.DownloadGroupInfo;
 import nie.translator.rtranslator.downloader.DownloadInfo;
 import nie.translator.rtranslator.downloader.DownloadManager;
+import nie.translator.rtranslator.tools.DownloaderTools;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.ErrorCodes;
 import nie.translator.rtranslator.tools.TTS;
@@ -103,6 +104,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
     private Translator translator;
     @Nullable
     private Recognizer speechRecognizer;
+    private boolean speechRecognizerInitialized = false;
     private String name = "";
     private int micSensitivity = -1;
     private int speechTimeout = -1;
@@ -137,7 +139,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         useTranslationDictionaries = sharedPreferences.getBoolean("useTranslationDictionaries", false);
         useMozillaForVoiceTranslation = sharedPreferences.getBoolean("useMozillaForVoiceTranslation", false);
         whisperReducedRam = sharedPreferences.getBoolean("whisperReducedRam", getTotalRamSize() <= 7000);
-        translationMode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
+        translationMode = sharedPreferences.getInt("selectedTranslationModel", Translator.LLM);
 
         if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.R) {
             REQUIRED_PERMISSIONS_PAIRING = new String[]{
@@ -179,7 +181,19 @@ public class Global extends Application implements DefaultLifecycleObserver {
                     .setSilenceDurationMs(300)
                     .setSpeechDurationMs(50)
                     .build();
-            speechRecognizer = new Recognizer(this, true, initListener);
+            speechRecognizerInitialized = false;
+            speechRecognizer = new Recognizer(this, true, new NeuralNetworkApi.InitListener() {
+                @Override
+                public void onInitializationFinished() {
+                    speechRecognizerInitialized = true;
+                    initListener.onInitializationFinished();
+                }
+
+                @Override
+                public void onError(int[] reasons, long value) {
+                    initListener.onError(reasons, value);
+                }
+            });
         }else{
             initListener.onInitializationFinished();
         }
@@ -260,7 +274,7 @@ public class Global extends Application implements DefaultLifecycleObserver {
         if(translator != null){
             mode = translator.getMode();
         }else{
-            mode = sharedPreferences.getInt("selectedTranslationModel", Translator.MOZILLA);
+            mode = sharedPreferences.getInt("selectedTranslationModel", Translator.LLM);
         }
         //the "Mozilla for voice modes" option never applies to the custom LLM mode
         boolean useMozillaForVoice = mode != Translator.LLM && isUseMozillaForVoiceTranslation() && (rtranslatorMode == RTranslatorMode.CONVERSATION_MODE || rtranslatorMode == RTranslatorMode.WALKIE_TALKIE_MODE);
@@ -463,43 +477,10 @@ public class Global extends Application implements DefaultLifecycleObserver {
         });
     }
 
-    public DownloadGroupInfo getInitialDownloadInfo(){
+    public DownloadGroupInfo getWhisperDownloadInfo(){
         String downloadFolder = getFilesDir().getAbsolutePath();
         String baseUrl = "https://github.com/niedev/RTranslator/releases/download/2.0.0/";
-        String baseUrlAlt = "https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/";
         return new DownloadGroupInfo(new DownloadInfo[]{
-                /*new DownloadInfo(
-                        "NLLB_cache_initializer.onnx",
-                        baseUrl + "NLLB_cache_initializer.onnx",
-                        downloadFolder,
-                        24000,
-                        true,
-                        false
-                ),
-                new DownloadInfo(
-                        "NLLB_decoder.onnx",
-                        baseUrl + "NLLB_decoder.onnx",
-                        downloadFolder,
-                        171000,
-                        true,
-                        false
-                ),
-                new DownloadInfo(
-                        "NLLB_embed_and_lm_head.onnx",
-                        baseUrl + "NLLB_embed_and_lm_head.onnx",
-                        downloadFolder,
-                        500000,
-                        true,
-                        false
-                ),
-                new DownloadInfo(
-                        "NLLB_encoder.onnx",
-                        baseUrl + "NLLB_encoder.onnx",
-                        downloadFolder,
-                        254000,
-                        true,
-                        false
-                ),*/
                 new DownloadInfo(
                         "Whisper_cache_initializer.onnx",
                         baseUrl + "Whisper_cache_initializer.onnx",
@@ -548,15 +529,61 @@ public class Global extends Application implements DefaultLifecycleObserver {
                         true,
                         false
                 ),
-                new DownloadInfo(
-                        "TranslationDictionaries.zip",
-                        baseUrlAlt + "TranslationDictionaries.zip",
-                        downloadFolder + "/Translation/",
-                        108000,
-                        false,
-                        true
-                ),
         });
+    }
+
+    public DownloadGroupInfo getInitialDownloadInfo(){
+        DownloadInfo[] whisperDownloads = getWhisperDownloadInfo().downloadsInfo;
+        String downloadFolder = getFilesDir().getAbsolutePath();
+        String baseUrlAlt = "https://github.com/niedev/OnnxModelsEnhancer/releases/download/v1.0.0-beta/";
+        DownloadInfo[] allDownloads = new DownloadInfo[whisperDownloads.length + 1];
+        System.arraycopy(whisperDownloads, 0, allDownloads, 0, whisperDownloads.length);
+        allDownloads[whisperDownloads.length] = new DownloadInfo(
+                "TranslationDictionaries.zip",
+                baseUrlAlt + "TranslationDictionaries.zip",
+                downloadFolder + "/Translation/",
+                108000,
+                false,
+                true
+        );
+        return new DownloadGroupInfo(allDownloads);
+    }
+
+    /** Returns true when all the Whisper model files are present on disk (checked against the files themselves, not the saved download status). */
+    public boolean isWhisperDownloaded() {
+        for (DownloadInfo download : getWhisperDownloadInfo().downloadsInfo) {
+            if (!new File(download.getDestinationCompletePath()).exists()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Marks the Whisper download group as completed in the saved download status when the model
+     * files are already on disk (e.g. they were downloaded by the old first-start flow as part of
+     * the initial download, which has no separate Whisper entry in the saved status).
+     */
+    public void syncWhisperDownloadStatus() {
+        if (!isWhisperDownloaded()) {
+            return;
+        }
+        DownloadManager downloadManager = new DownloadManager(this);
+        if (downloadManager.checkDownloadCompleted(getWhisperDownloadInfo())) {
+            return;
+        }
+        DownloadGroupInfo whisperDownloadInfo = getWhisperDownloadInfo();
+        for (DownloadInfo download : whisperDownloadInfo.downloadsInfo) {
+            download.setDownloadCompleted(true);
+            if (download.shouldUnzip()) {
+                download.setUnzipped(true);
+            }
+            if (download.shouldTestIntegrity()) {
+                download.setIntegrityTested(true);
+            }
+        }
+        whisperDownloadInfo.setAllDownloadCompleted(true);
+        DownloaderTools.addDownloadGroupInfoPreference(this, whisperDownloadInfo);
     }
 
 
@@ -574,8 +601,34 @@ public class Global extends Application implements DefaultLifecycleObserver {
         return speechRecognizer;
     }
 
+    /** Returns true when the speech recognizer exists and has finished loading its models. */
+    public boolean isSpeechRecognitionReady() {
+        return speechRecognizer != null && speechRecognizerInitialized;
+    }
+
+    /**
+     * Starts the speech recognizer in the background if the Whisper model is on disk but the
+     * recognizer was never started (e.g. the model was downloaded later from the model manager,
+     * after the app had already started without it).
+     */
+    public void ensureSpeechRecognizerStarted() {
+        if (speechRecognizer == null && isWhisperDownloaded()) {
+            initializeSpeechRecognizer(new NeuralNetworkApi.InitListener() {
+                @Override
+                public void onInitializationFinished() {
+                }
+
+                @Override
+                public void onError(int[] reasons, long value) {
+                    deleteSpeechRecognizer();
+                }
+            });
+        }
+    }
+
     public void deleteSpeechRecognizer(){
         speechRecognizer = null;
+        speechRecognizerInitialized = false;
     }
 
     public boolean isForeground() {

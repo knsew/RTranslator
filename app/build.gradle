@@ -70,6 +70,22 @@ android {
         buildConfig true
     }
 
+    // Release signing (fork): the keystore lives outside the repository.
+    // CI decodes it from the ANDROID_KEYSTORE_BASE64 secret and passes the
+    // credentials through environment variables. Without them, release builds
+    // fail with a clear error; debug builds are unaffected.
+    signingConfigs {
+        release {
+            def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (keystorePath != null) {
+                storeFile file(keystorePath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false
@@ -91,7 +107,7 @@ android {
             proguardFiles getDefaultProguardFile(
                     'proguard-android-optimize.txt'),
                     'proguard-rules.pro'
-            signingConfig signingConfigs.debug
+            signingConfig signingConfigs.release
         }
     }
     lintOptions {

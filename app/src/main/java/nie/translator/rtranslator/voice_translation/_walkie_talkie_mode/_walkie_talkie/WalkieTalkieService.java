@@ -242,6 +242,9 @@ public class WalkieTalkieService extends VoiceTranslationService {
             @Override
             public void onVoice(@NonNull float[] data, int size) {
                 super.onVoice(data,size);
+                if (speechRecognizer == null) {
+                    return;
+                }
                 if(manualRecognizingFirstLanguage){
                     // we start the speech recognition in only the first language
                     speechRecognizer.recognize(data, SPEECH_BEAM_SIZE, firstLanguage.getCode());
@@ -427,8 +430,10 @@ public class WalkieTalkieService extends VoiceTranslationService {
 
         if(finalFirstLanguage==null || finalSecondLanguage==null ) {  //se è il primo avvio
             //we attach the speech recognition callbacks
-            speechRecognizer.addMultiCallback(speechRecognizerCallback);
-            speechRecognizer.addCallback(speechRecognizerSingleCallback);
+            if (speechRecognizer != null) {
+                speechRecognizer.addMultiCallback(speechRecognizerCallback);
+                speechRecognizer.addCallback(speechRecognizerSingleCallback);
+            }
         }
         return startType;
     }
@@ -437,10 +442,12 @@ public class WalkieTalkieService extends VoiceTranslationService {
     public void onDestroy() {
         Log.i("walkieTalkie", "WalkieTalkie service destroyed");
         //disconnect speechRecognizerCallback
-        speechRecognizer.removeMultiCallback(speechRecognizerCallback);
-        speechRecognizer.removeCallback(speechRecognizerSingleCallback);
-        // Stop recognizer
-        speechRecognizer.stop();
+        if (speechRecognizer != null) {
+            speechRecognizer.removeMultiCallback(speechRecognizerCallback);
+            speechRecognizer.removeCallback(speechRecognizerSingleCallback);
+            // Stop recognizer
+            speechRecognizer.stop();
+        }
         super.onDestroy();
     }
 

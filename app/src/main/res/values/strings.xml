@@ -43,6 +43,11 @@
     <string name="dictionary">Dictionary</string>
     <string name="apply">Apply</string>
     <string name="speech_recognition_model">Speech Recognition Model</string>
+    <string name="description_whisper_model">Speech recognition model (Whisper). Required for the WalkieTalkie and Conversation modes; text translation works without it.</string>
+    <string name="title_speech_recognition_not_downloaded">Speech recognition not downloaded</string>
+    <string name="error_speech_recognition_not_downloaded">The voice modes need the speech recognition model. Download it in Settings → Models (Whisper, about 290 MB) to use them.</string>
+    <string name="loading_speech_recognition">Loading the speech recognition model, please try again in a moment.</string>
+    <string name="button_download">Download</string>
     <string name="translation_dictionaries">Translation Dictionaries</string>
     <string name="performance">Performance</string>
     <string name="quality">Quality</string>

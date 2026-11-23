@@ -20,6 +20,7 @@ import nie.translator.rtranslator.downloader.DownloadGroupInfo;
 import nie.translator.rtranslator.downloader.DownloadManager;
 import nie.translator.rtranslator.tools.Tools;
 import nie.translator.rtranslator.tools.gui.ResourceManagerView;
+import nie.translator.rtranslator.voice_translation.neural_networks.translation.Translator;
 
 public class ResourceManager implements MozillaLanguagesAdapter.ResourceManagerItem {
     @Nullable
@@ -62,6 +63,13 @@ public class ResourceManager implements MozillaLanguagesAdapter.ResourceManagerI
 
         @Override
         public void onDeletePressed() {
+            // with the custom LLM mode the app does not depend on any local model,
+            // so deleting the last local translation model is allowed
+            Global global = (Global) activity.getApplication();
+            if (global.getTranslationMode() == Translator.LLM || global.isLlmConfigured()) {
+                showDeleteDialog();
+                return;
+            }
             DownloadGroupInfo hyMtDownloadInfo = ((Global) activity.getApplication()).getHyMtDownloadInfo();
             DownloadGroupInfo madladDownloadInfo = ((Global) activity.getApplication()).getMadladDownloadInfo();
             if(isMozillaDownload(downloadInfo) || downloadInfo.equals(hyMtDownloadInfo) || downloadInfo.equals(madladDownloadInfo)) {

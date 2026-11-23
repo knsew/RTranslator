@@ -54,6 +54,7 @@ import nie.translator.rtranslator.GeneralActivity;
 import nie.translator.rtranslator.Global;
 import nie.translator.rtranslator.R;
 import nie.translator.rtranslator.bluetooth.BluetoothCommunicator;
+import nie.translator.rtranslator.settings.SettingsActivity;
 import nie.translator.rtranslator.bluetooth.Peer;
 import nie.translator.rtranslator.tools.CustomLocale;
 import nie.translator.rtranslator.tools.CustomServiceConnection;
@@ -178,6 +179,9 @@ public class VoiceTranslationActivity extends GeneralActivity {
     public void setFragment(int fragmentName, boolean requestPermission) {
         switch (fragmentName) {
             case PAIRING_FRAGMENT: {
+                if (!isSpeechRecognitionAvailable()) {
+                    break;
+                }
                 // possible stop of the Conversation and WalkieTalkie Service
                 stopConversationService();
                 stopWalkieTalkieService();
@@ -208,6 +212,9 @@ public class VoiceTranslationActivity extends GeneralActivity {
                 break;
             }
             case CONVERSATION_FRAGMENT: {
+                if (!isSpeechRecognitionAvailable()) {
+                    break;
+                }
                 // possible stop of the WalkieTalkie Service
                 stopWalkieTalkieService();
                 // possible setting of the fragment
@@ -233,6 +240,9 @@ public class VoiceTranslationActivity extends GeneralActivity {
                 break;
             }
             case WALKIE_TALKIE_FRAGMENT: {
+                if (!isSpeechRecognitionAvailable()) {
+                    break;
+                }
                 // possible stop of the Conversation Service
                 stopConversationService();
                 // possible destroy of BluetoothCommunicator
@@ -279,6 +289,47 @@ public class VoiceTranslationActivity extends GeneralActivity {
                 break;
             }
         }
+    }
+
+    /**
+     * The voice modes need the speech recognizer. When the Whisper model was never downloaded the
+     * app still starts (text translation works), so entering a voice mode is guarded here instead
+     * of blocking the whole app at startup.
+     */
+    private boolean isSpeechRecognitionAvailable() {
+        if (global.isSpeechRecognitionReady()) {
+            return true;
+        }
+        if (global.getSpeechRecognizer() == null && global.isWhisperDownloaded()) {
+            // the model is on disk but the recognizer was never started (e.g. downloaded later
+            // from the model manager): start it now and ask the user to retry in a moment
+            global.ensureSpeechRecognizerStarted();
+            Toast.makeText(global, R.string.loading_speech_recognition, Toast.LENGTH_LONG).show();
+            return false;
+        }
+        if (global.getSpeechRecognizer() != null) {
+            // the recognizer exists but is still loading its models
+            Toast.makeText(global, R.string.loading_speech_recognition, Toast.LENGTH_LONG).show();
+            return false;
+        }
+        showSpeechRecognitionNotDownloadedDialog();
+        return false;
+    }
+
+    private void showSpeechRecognitionNotDownloadedDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.title_speech_recognition_not_downloaded);
+        builder.setMessage(R.string.error_speech_recognition_not_downloaded);
+        builder.setPositiveButton(R.string.button_download, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                Intent intent = new Intent(VoiceTranslationActivity.this, SettingsActivity.class);
+                intent.putExtra("startWithModelManager", true);
+                startActivity(intent);
+            }
+        });
+        builder.setNegativeButton(android.R.string.cancel, null);
+        builder.create().show();
     }
 
     public void saveFragment() {

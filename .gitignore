@@ -7,3 +7,8 @@
 .externalNativeBuild
 app/.cxx
 app/release
+
+# release signing keystore (fork): never commit the keystore or its passwords
+*.jks
+*.keystore
+keystore.properties
